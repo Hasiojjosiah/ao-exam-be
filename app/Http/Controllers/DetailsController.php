@@ -4,15 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Details;
 use Illuminate\Http\Request;
-use DB;
+use Illuminate\Support\Facades\DB;
 
 class DetailsController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
+
     public function index()
     {
         $index = Details::select('id', 'name', 'email', 'ip_address', 'country', 'city')
@@ -21,12 +17,7 @@ class DetailsController extends Controller
         return response()->json($index);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
+
     public function store(Request $request)
     {
         $request->validate([
@@ -74,12 +65,62 @@ class DetailsController extends Controller
         return response()->json($store);
     }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\Details  $Details
-     * @return \Illuminate\Http\Response
-     */
+    public function update(Request $request, $id)
+    {
+        $request['id'] = $id;
+        $request->validate([
+            'id' => ['required'],
+            'name' => ['required'],
+            'email' => ['required', 'email:rfc,dns'],
+            'ip_address' => ['required', 'ip'],
+            'country' => ['string'],
+            'city' => ['string'],
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+            $data = [];
+
+
+            $data["name"] = $request->input('name');
+            $data["email"] = $request->input('email');
+            $data["ip_address"] = $request->input('ip_address');
+
+            if ($request->has('country')) {
+                $data["country"] = $request->input('country');
+            }
+
+            if ($request->has('city')) {
+                $data["city"] = $request->input('city');
+            }
+
+
+            $update = Details::where('id', $request->input('id'))
+                ->update($data);
+        } catch (\Throwable $th) {
+
+            DB::rollBack();
+            $message = [
+                "message" => "Something went wrong.",
+                "errors" => [
+                    "server" => [
+                        $th->getMessage()
+                    ]
+                ]
+            ];
+
+            return response()->json($message, 500);
+        }
+
+        DB::commit();
+
+        $message = [
+            "message" => "Succesfully Updated.",
+        ];
+        return response()->json($message);
+    }
+
     public function show($id)
     {
         $show = Details::where('id', $id)
@@ -87,5 +128,13 @@ class DetailsController extends Controller
             ->first();
 
         return response()->json($show);
+    }
+
+    public function remove($id)
+    {
+        $remove = Details::where('id', $id)
+            ->delete();
+
+        return response()->json($remove);
     }
 }
